@@ -1,0 +1,206 @@
+from concurrent.futures import ThreadPoolExecutor
+import re
+import sys
+import socket
+from time import sleep
+from xmlrpc.server import MultiPathXMLRPCServer
+sys.path.insert(0, "../")
+import main as home
+from modules.helper import *
+
+ip_regex = r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"
+port_regex = r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+
+class scanner:
+    ip = "1.1.1.1"
+    target_port = 80
+    starting_port = 1
+    ending_port = 65535 # + 1
+    show_disabled_ports = True
+
+def main():
+    banner.port_scanner()
+    print(" " * 15 + Color.RED + "1. Single port")
+    print(" " * 15 + Color.RED + "2. Multiple port")
+    print(" " * 15 + Color.RED + "100. Return\n")
+    option = input("[>] Option: ")
+    if option == "":
+        error(ERROR_UNSELECTED_OPTION, main)
+    elif not option.isnumeric():
+        error(ERROR_OPTION_NAN, main)
+    elif int(option) == 1:
+        cls()
+        single_port()
+    elif int(option) == 2:
+        cls()
+        multiple_port()
+    else: error(ERROR_INVALID_OPTION, main)
+
+def single_port():
+    banner.port_scanner()
+    print(" " * 15 + terminal.color + "1. IP Address         : " + terminal.value + str(scanner.ip))
+    print(" " * 15 + terminal.color + "2. Port               : " + terminal.value + str(scanner.target_port))
+    print(" " * 15 + terminal.color + "3. Timeout            : " + terminal.value + str(socket.getdefaulttimeout()))
+    print(" " * 15 + terminal.color + "99. Scan")
+    print(" " * 15 + terminal.color + "100. Return\n")
+    option = input("[>] Select an option to modify: ")
+    if option == "": 
+        error(ERROR_UNSELECTED_OPTION, single_port)
+    elif not option.isnumeric(): 
+        error(ERROR_OPTION_NAN, single_port)
+    elif int(option) == 1:
+        ip = input("[>] IP Address: ")
+        if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
+            error("Invalid IP address.", single_port)
+        else:
+            scanner.ip = ip
+            cls()
+            single_port()
+    elif int(option) == 2:
+        port = input('[>] Port: ')
+        if not re.match(r"^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$", port):
+            error("Invalid port number.", single_port)
+        else:
+            scanner.target_port = port
+            cls()
+            single_port()
+    elif int(option) == 3:
+        timeout = input('[>] Timeout: ')
+        if timeout == "":
+            cls()
+            single_port()
+        elif not is_float(timeout):
+            error("Timeout is not a number", single_port)
+        else:
+            socket.setdefaulttimeout(float(timeout))
+            cls()
+            single_port()
+    elif int(option) == 99:
+        scan(port=scanner.target_port)
+        input("[>] Press ENTER to return...")
+        cls()
+        single_port()
+    elif int(option) == 100:
+        cls()
+        home.main()
+    else: 
+        error(ERROR_INVALID_OPTION, single_port)
+
+def multiple_port():
+    banner.port_scanner()
+    print(" " * 15 + terminal.color + "1. IP Address         : " + terminal.value + str(scanner.ip))
+    if int(scanner.starting_port) == 1 and int(scanner.ending_port) == 65535:
+        print(" " * 15 + terminal.color + "2. Port               : " + terminal.value + "1-65535 (All ports)")
+    else:
+        print(" " * 15 + terminal.color + "2. Port               : " + terminal.value + f"{str(scanner.starting_port)}-{str(scanner.ending_port)}")
+    print(" " * 15 + terminal.color + "3. Timeout            : " + terminal.value + str(socket.getdefaulttimeout()))
+    print(" " * 15 + terminal.color + "4. Show disabled port : " + terminal.value + str(scanner.show_disabled_ports).replace("True", terminal.true + "True").replace("False", terminal.false + "False"))
+    print(" " * 15 + terminal.color + "99. Scan")
+    print(" " * 15 + terminal.color + "100. Return\n")
+    option = input("[>] Select an option to modify: ")
+    if option == "": 
+        error(ERROR_UNSELECTED_OPTION, multiple_port)
+    elif not option.isnumeric(): 
+        error(ERROR_OPTION_NAN, multiple_port)
+    elif int(option) == 1:
+        ip = input("[>] IP Address: ")
+        if not re.match(ip_regex, ip):
+            error("Invalid IP address.", multiple_port)
+        else:
+            scanner.ip = ip
+            cls()
+            multiple_port()
+    elif int(option) == 2:
+        # print("Example: 1-65535")
+        # port = input("[>] Port in range: ")
+        # if not "-" in port:
+        #     error("Invalid range.", multiple_port)
+        # elif not re.match(port_regex, port.split("-")[0]) or not re.match(port_regex, port.split("-")[1]):
+        #     error("Invalid port.", multiple_port)
+        # elif port.split("-")[0] > port.split("-")[1]:
+        #     error("Starting port cannot be larger than ending.", multiple_port)
+        # elif port.split("-")[0] == port.split("-")[1]:
+        #     error("Starting port cannot be the same as ending port. Use single port instead.", multiple_port)
+        # else:
+        #     scanner.ports[0] = port.split("-")[0]
+        #     scanner.ports[1] = port.split("-")[1]
+        #     cls()
+        #     multiple_port()\
+        port0 = input("[>] Start from port: ")
+        if port0 == "":
+            error("Port cannot be empty!", multiple_port)
+        elif not port0.isnumeric():
+            error("Port is not a number", multiple_port)
+        port1 = input("[>] End on port: ")
+        if port1 == "":
+            error("Port cannot be empty!", multiple_port)
+        elif not port1.isnumeric():
+            error("Port is not a number", multiple_port)
+        # elif port0 > port1:
+        #     print(f"{type(port0)}  | {str({port0})}")
+        #     print(f"{type(port1)}  | {str({port1})}")
+        #     error(f"Starting port cannot be larger than ending port. ({port0}-{port1})", multiple_port)
+        elif port0 == port1:
+            error(f"Starting port cannot be the same as ending port. ({port0}-{port1})", multiple_port)
+        else:
+            scanner.starting_port = int(port0)
+            scanner.ending_port = int(port1)
+            cls()
+            multiple_port()
+    elif int(option) == 3:
+        timeout = input('[>] Timeout: ')
+        if timeout == "":
+            cls()
+            multiple_port()
+        elif not is_float(timeout):
+            error("Timeout is not a number", multiple_port)
+        else:
+            socket.setdefaulttimeout(float(timeout))
+            cls()
+            multiple_port()
+    elif int(option) == 4:
+        scanner.show_disabled_ports = not scanner.show_disabled_ports
+    elif int(option) == 99:
+        with ThreadPoolExecutor(max_workers=100) as executor:
+            for port in range(scanner.starting_port, scanner.ending_port + 1):
+                executor.submit(scan(target=str(scanner.ip), port=int(port)))
+        input("[>] Press ENTER to return...")
+        cls()
+        multiple_port()
+    elif int(option) == 100:
+        cls()
+        home.main()
+    else: 
+        error(ERROR_INVALID_OPTION, multiple_port)
+
+def scan(target:str, port:int):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print("Connecting... ", end="\r")
+        r = s.connect_ex((target, port))
+        s.close()
+        if r == 0:
+            print(f"[i] [{target}][{r}] Port {port} is open.")
+        else:
+            print(f"[i] [{target}][{r}] Port {port} is closed.")
+    except KeyboardInterrupt:
+        cls()
+        multiple_port()
+    # elif scanner.show_disabled_ports:
+    #     print(Color.RED + f"[-] Port {port} is closed")
+
+def test():
+    target = '1.1.1.1'
+    socket.setdefaulttimeout(0.25)
+    try:
+        for port in range(1,65535):
+            print(target + ":" + str(port))
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = s.connect((target,port))
+            if result == 0:
+                print("Port {} is open".format(port))
+            s.close()
+    except KeyboardInterrupt:
+            print("ctrl + c")
+
+if __name__ == '__main__': test()
